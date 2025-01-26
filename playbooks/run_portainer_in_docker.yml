@@ -1,0 +1,32 @@
+---
+- name: Run portainer in docker
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Portainer directory
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/portainer_data"
+        state: directory
+        mode: '0755'
+
+    - name: Create portainer container
+      docker_container:
+        name: portainer_main
+        image: portainer/portainer-ce
+        state: started
+        working_dir: "/home/{{ remote_shell_user }}/"
+        recreate: true
+        restart_policy: 'unless-stopped'
+        volumes:
+          - "/home/{{ remote_shell_user }}/portainer_data:/data"
+          - /var/run/docker.sock:/var/run/docker.sock:ro
+        networks:
+          - name: '{{ traefik_network }}'
+        labels:
+          "traefik.enable": "true"
+          "traefik.http.routers.portainer.rule": "Host(`portainer.{{ homelab_private_host }}`)"
+          "traefik.http.routers.portainer.entrypoints": "https,http"
+          "traefik.http.routers.portainer.tls": "true"
+          "traefik.http.routers.portainer.tls.certresolver": "cloudflare"
+          "traefik.http.services.portainer.loadbalancer.server.port": "9000"

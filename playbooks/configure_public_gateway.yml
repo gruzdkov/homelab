@@ -1,0 +1,185 @@
+- name: Generate keys
+  hosts: gateway
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Generate wg0 server private key
+      become: true
+      command: wg genkey
+      register: wg_server_private_key_gen
+
+    - set_fact:
+        wg_server_private_key={{ wg_server_private_key_gen.stdout }}
+
+    - name: Generate wg0 server public key
+      become: true
+      shell: "echo {{ wg_server_private_key }} | wg pubkey"
+      register: wg_server_public_key_gen
+
+    - set_fact:
+        wg_server_public_key={{ wg_server_public_key_gen.stdout }}
+
+    - name: Generate client private key
+      become: true
+      command: wg genkey
+      register: wg_client_private_key_gen
+
+    - set_fact:
+        wg_client_private_key={{ wg_client_private_key_gen.stdout }}
+
+    - name: Generate client public key
+      become: true
+      shell: "echo {{ wg_client_private_key }} | wg pubkey"
+      register: wg_client_public_key_gen
+
+    - set_fact:
+        wg_client_public_key={{ wg_client_public_key_gen.stdout }}
+        wg_client_ip={{ lookup('env', 'HAMSTER_INNER_IP') }}
+
+    - name: Generate client preshared key
+      become: true
+      command: wg genkey
+      register: wg_client_preshared_key_gen
+
+    - set_fact:
+        wg_client_preshared_key={{ wg_client_preshared_key_gen.stdout }}
+
+- name: Configure wg and docker on server
+  hosts: gateway
+  remote_user: "{{ remote_shell_user }}"
+
+  roles:
+    - role: geerlingguy.docker
+      become: true
+
+  tasks:
+    - name: Put wg server config
+      become: true
+      ansible.builtin.template:
+        src: ../templates/wg0.conf.j2
+        dest: "/etc/wireguard/wg0.conf"
+        newline_sequence: '\n'
+
+    - name: Create "clients" directory if it does not exist
+      become: true
+      file:
+        path: /etc/wireguard/clients
+        state: directory
+        mode: '0755'
+
+    - name: Put wg client config
+      become: true
+      ansible.builtin.template:
+        src: ../templates/wg_client.conf.j2
+        dest: "/etc/wireguard/clients/dev.conf"
+        newline_sequence: '\n'
+
+    - name: Down wg0
+      become: true
+      command: wg-quick down wg0
+
+    - name: Up wg0
+      become: true
+      command: wg-quick up wg0
+
+    - name: Prepare linux user
+      ansible.builtin.user:
+        name: '{{ remote_shell_user }}'
+        groups: docker
+        append: yes
+      become: true
+
+    - name: Create network
+      docker_network:
+        name: '{{ traefik_network }}'
+
+    - name: Put traefik Config
+      ansible.builtin.template:
+        src: ../templates/traefik.yml
+        dest: "/home/{{ remote_shell_user }}/traefik.yml"
+        newline_sequence: '\n'
+
+    - name: Put traefik Config
+      ansible.builtin.template:
+        src: ../templates/traefik_public_http.yml
+        dest: "/home/{{ remote_shell_user }}/traefik_http.yml"
+        newline_sequence: '\n'
+
+    - name: Prepare directories
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/acme"
+        state: directory
+
+    - name: Touch a file
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/acme/acme.json"
+        state: touch
+        mode: '0600'
+
+    - name: Create traefik container
+      docker_container:
+        name: traefik_main
+        image: traefik
+        state: started
+        working_dir: "/home/{{ remote_shell_user }}/"
+        recreate: true
+        restart_policy: 'unless-stopped'
+        env:
+          CF_DNS_API_TOKEN: "{{ lookup('env', 'CF_DNS_API_TOKEN') }}"
+          CLOUDFLARE_PROPAGATION_TIMEOUT: "100000"
+        published_ports:
+          - "443:443"
+          - "80:80"
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+          - "/home/{{ remote_shell_user }}/traefik.yml:/etc/traefik/traefik.yml:rw"
+          - "/home/{{ remote_shell_user }}/traefik_http.yml:/etc/traefik/traefik_http.yml:rw"
+          - "/home/{{ remote_shell_user }}/acme:/etc/traefik/acme:rw"
+          - /var/run/docker.sock:/var/run/docker.sock:ro
+        labels:
+            "traefik.enable": "true"
+            "traefik.http.routers.traefik.entrypoints": "http"
+            "traefik.http.routers.traefik.rule": "Host(`dashboard.{{ homelab_public_host }}`)"
+            "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme": "https"
+            "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto": "https"
+            "traefik.http.routers.traefik.middlewares": "traefik-https-redirect"
+            "traefik.http.routers.traefik-secure.entrypoints": "https"
+            "traefik.http.routers.traefik-secure.rule": "Host(`traefik-dashboard.{{ homelab_public_host }}`)"
+            "traefik.http.routers.traefik-secure.tls": "true"
+            "traefik.http.routers.traefik-secure.tls.certresolver": "cloudflare"
+            "traefik.http.routers.traefik-secure.tls.domains[0].main": "{{ homelab_public_host }}"
+            "traefik.http.routers.traefik-secure.tls.domains[0].sans": "*.{{ homelab_public_host }}"
+            "traefik.http.routers.traefik-secure.service": "api@internal"
+        networks:
+          - name: '{{ traefik_network }}'
+
+- name: Configure wg on client
+  hosts: client0
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - set_fact:
+        wg_server_public_key={{ hostvars[public_gateway_ip]['wg_server_public_key'] }}
+        wg_client_private_key={{ hostvars[public_gateway_ip]['wg_client_private_key'] }}
+        wg_client_public_key={{ hostvars[public_gateway_ip]['wg_client_public_key'] }}
+        wg_client_preshared_key={{  hostvars[public_gateway_ip]['wg_client_preshared_key']}}
+        wg_client_ip={{  hostvars[public_gateway_ip]['wg_client_ip']}}
+        wg_client_ip={{ lookup('env', 'HAMSTER_INNER_IP') }}
+
+    - name: Put wg config
+      become: true
+      ansible.builtin.template:
+        src: ../templates/wg_client.conf.j2
+        dest: "/etc/wireguard/wg0.conf"
+        newline_sequence: '\n'
+
+    - name: Down wg0
+      become: true
+      command: wg-quick down wg0
+      ignore_errors: true
+
+    - name: Up wg0
+      become: true
+      command: wg-quick up wg0
+
+

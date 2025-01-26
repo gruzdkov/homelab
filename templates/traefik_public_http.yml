@@ -1,0 +1,28 @@
+http:
+  services:
+    hamster_api:
+      loadBalancer:
+        servers:
+          - url: "http://{{ hamster_inner_ip }}:5001"
+    hamster_web:
+      loadBalancer:
+        servers:
+          - url: "http://{{ hamster_inner_ip }}:5000"
+  routers:
+    hamster_api_router:
+      rule: "Host(`hamster.{{ homelab_public_host }}`) && PathPrefix(`/api`)"
+      service: "hamster_api"
+      entryPoints:
+        - "http"
+        - "https"
+      tls:
+        certresolver: "cloudflare"
+
+    hamster_web_router:
+      rule: "Host(`hamster.{{ homelab_public_host }}`)"
+      service: "hamster_web"
+      entryPoints:
+        - "http"
+        - "https"
+      tls:
+        certresolver: "cloudflare"

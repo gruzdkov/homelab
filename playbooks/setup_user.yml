@@ -1,0 +1,46 @@
+- hosts: all
+  gather_facts: false
+  remote_user: root
+  become: true
+
+  tasks:
+    - name: "Add authorized keys"
+      authorized_key:
+        user: root
+        key: "{{ ssh_key }}"
+
+    - name: Restart SSH service
+      systemd:
+        name: ssh
+        state: restarted
+
+    - name: Disable password authentication for SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+
+    - name: Prepare linux user
+      ansible.builtin.user:
+        name: "{{ remote_shell_user }}"
+        comment: Soulless Robot
+        groups: sudo
+        shell: /bin/bash
+        state: present
+
+    - name: "Add authorized keys"
+      authorized_key:
+        user: "{{ remote_shell_user }}"
+        key: "{{ ssh_key }}"
+
+    - name: Restart SSH service
+      systemd:
+        name: ssh
+        state: restarted
+
+    - name: "Allow robots users to sudo without a password"
+      lineinfile:
+        dest: "/etc/sudoers" # path: in version 2.3
+        state: "present"
+        regexp: "^{{ remote_shell_user }}"
+        line: "{{ remote_shell_user }} ALL=(ALL) NOPASSWD: ALL"

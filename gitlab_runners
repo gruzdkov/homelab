@@ -1,0 +1,15 @@
+ungrouped:
+  hosts:
+    "{{ lookup('env', 'GITLAB_RUNNER_0_IP') }}":
+  vars:
+    remote_shell_user: robot
+    lxc_root_dir: /lxc_containers
+    traefik_network: traefik_main
+    gitlab_container_ip: "{{ lookup('env', 'GITLAB_CONTAINER_IP') }}"
+    ssh_key: "{{ lookup('file', lookup('env', 'MAIN_HOST_AUTH_KEY_FILE_PATH')) }}"
+    acme_email: "{{ lookup('env', 'ACME_EMAIL') }}"
+    homelab_tz: "{{ lookup('env', 'HOMELAB_TZ') }}"
+    homelab_private_host: "{{ lookup('env', 'HOMELAB_PRIVATE_HOST' ) }}"
+    public_gateway_ip: "{{ lookup('env', 'PUBLIC_GATEWAY_IP') }}"
+    gitlab_user: "{{ lookup('env', 'GITLAB_USER') }}"
+    hamster_inner_ip: "{{ lookup('env', 'HAMSTER_INNER_IP') }}"

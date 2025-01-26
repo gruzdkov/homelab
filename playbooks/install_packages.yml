@@ -1,0 +1,34 @@
+---
+# codename=$(lsb_release -cs);echo "deb http://deb.debian.org/debian $codename-backports main contrib non-free"|sudo tee -a /etc/apt/sources.list && sudo apt update
+# apt install -y -t stable-backports zfsutils-linux
+- name: Install apt packages
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Install apt packages
+      become: true
+      apt:
+        update_cache: yes
+        pkg:
+        - build-essential
+        - htop
+        - curl
+        - wget
+        - vim
+        - net-tools
+        - zsh
+        - zip
+        - lxc
+        - git
+        - libvirt0
+        - libpam-cgfs
+        - bridge-utils
+        - uidmap
+        - linux-headers-amd64
+        - lshw
+        - intel-gpu-tools
+        - intel-hdcp
+        - intel-media-va-driver
+        - intel-opencl-icd
+

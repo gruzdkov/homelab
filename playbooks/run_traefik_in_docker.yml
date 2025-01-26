@@ -1,0 +1,73 @@
+---
+- name: Run traefik in docker
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Put traefik Config
+      ansible.builtin.template:
+        src: ../templates/traefik.yml
+        dest: "/home/{{ remote_shell_user }}/traefik.yml"
+        newline_sequence: '\n'
+
+    - name: Put traefik Config
+      ansible.builtin.template:
+        src: ../templates/traefik_http.yml
+        dest: "/home/{{ remote_shell_user }}/traefik_http.yml"
+        newline_sequence: '\n'
+
+    - name: Prepare directories
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/acme"
+        state: directory
+
+    - name: Touch a file
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/acme/acme.json"
+        state: touch
+        mode: '0600'
+
+    - name: Create network
+      docker_network:
+        name: '{{ traefik_network }}'
+
+    - name: Create traefik container
+      docker_container:
+        name: traefik_main
+        image: traefik
+        state: started
+        working_dir: "/home/{{ remote_shell_user }}/"
+        recreate: true
+        restart_policy: 'unless-stopped'
+        env:
+          CF_DNS_API_TOKEN: "{{ lookup('env', 'CF_DNS_API_TOKEN') }}"
+          CLOUDFLARE_PROPAGATION_TIMEOUT: "100000"
+        published_ports:
+          - "80:80"
+          - "443:443"
+          - "8080:8080"
+          - "5432:5432"
+          - "15432:15432"
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+          - "/home/{{ remote_shell_user }}/traefik.yml:/etc/traefik/traefik.yml:rw"
+          - "/home/{{ remote_shell_user }}/traefik_http.yml:/etc/traefik/traefik_http.yml:rw"
+          - "/home/{{ remote_shell_user }}/acme:/etc/traefik/acme:rw"
+          - /var/run/docker.sock:/var/run/docker.sock:ro
+        labels:
+            "traefik.enable": "true"
+            "traefik.http.routers.traefik.entrypoints": "http"
+            "traefik.http.routers.traefik.rule": "Host(`dashboard.{{ homelab_private_host }}`)"
+            "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme": "https"
+            "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto": "https"
+            "traefik.http.routers.traefik.middlewares": "traefik-https-redirect"
+            "traefik.http.routers.traefik-secure.entrypoints": "https"
+            "traefik.http.routers.traefik-secure.rule": "Host(`traefik-dashboard.{{ homelab_private_host }}`)"
+            "traefik.http.routers.traefik-secure.tls": "true"
+            "traefik.http.routers.traefik-secure.tls.certresolver": "cloudflare"
+            "traefik.http.routers.traefik-secure.tls.domains[0].main": "{{ homelab_private_host }}"
+            "traefik.http.routers.traefik-secure.tls.domains[0].sans": "*.{{ homelab_private_host }}"
+            "traefik.http.routers.traefik-secure.service": "api@internal"
+        networks:
+          - name: '{{ traefik_network }}'
+

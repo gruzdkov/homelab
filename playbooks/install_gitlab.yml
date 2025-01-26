@@ -1,0 +1,41 @@
+---
+- name: Install apt packages
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Install apt packages
+      become: true
+      apt:
+        update_cache: yes
+        pkg:
+          - htop
+          - curl
+          - wget
+          - vim
+          - net-tools
+          - zsh
+          - linux-headers-amd64
+          - openssh-server
+          - ca-certificates
+          - perl
+          - postfix
+
+    - name: Download and execute GitLab repository script
+      become: true
+      shell: curl -s https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | bash
+      args:
+        executable: /bin/bash
+
+    - name: Install gitlab
+      become: true
+      apt:
+        update_cache: yes
+        pkg:
+          - gitlab-ce
+
+    - name: Hold back gitlab package
+      become: true
+      shell: apt-mark hold gitlab-ce
+      args:
+        executable: /bin/bash

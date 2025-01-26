@@ -1,0 +1,12 @@
+[Interface]
+Address = {{ wg_server_ip }}/24
+ListenPort = 51820
+PrivateKey = {{ wg_server_private_key }}
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+[Peer]
+PublicKey = {{ wg_client_public_key }}
+PresharedKey = {{ wg_client_preshared_key }}
+AllowedIPs = {{ wg_client_ip }}/32
+

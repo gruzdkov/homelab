@@ -1,0 +1,8 @@
+---
+- import_playbook: playbooks/install_packages.yml
+- import_playbook: playbooks/setup_zsh.yml
+- import_playbook: playbooks/install_docker.yml
+- import_playbook: playbooks/run_portainer_in_docker.yml
+- import_playbook: playbooks/run_traefik_in_docker.yml
+- import_playbook: playbooks/run_jellyfin_in_docker.yml
+- import_playbook: playbooks/configure_lxc_common.yml

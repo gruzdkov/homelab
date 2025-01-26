@@ -1,0 +1,57 @@
+#!/bin/bash
+
+upload_git_backup() {
+  if [[ $# -ne 1 ]]; then
+    echo "Usage: upload_git_backup <file_path>"
+    return 1
+  fi
+
+  local file_path="$1"
+
+  if [[ ! -f "$file_path" ]]; then
+    echo "Error: File '$file_path' does not exist."
+    return 1
+  fi
+
+  local auth_token="{{ ya_disk_auth_token }}"
+  local file_etag=$(md5sum "$file_path" | awk '{print $1}')
+  local file_sha256=$(sha256sum "$file_path" | awk '{print $1}')
+  local file_size=$(stat --format=%s "$file_path")
+  local file_name=$(basename "$file_path")
+  local url="https://webdav.yandex.ru/backups/$file_name"
+
+  curl -T "$file_path" \
+    -v \
+    -H "Authorization: OAuth $auth_token" \
+    -H "Etag: $file_etag" \
+    -H "Sha256: $file_sha256" \
+    -H "Content-Type: application/binary" \
+    -H "Content-Length: $file_size" \
+    -X PUT "$url"
+}
+
+clone_repos() {
+  local projects=("hamster_web" "laladom" "hamster_api")
+  local username=$(whoami)
+  local dir_path="/home/${username}/git_backups/"
+
+  rm -rf "${dir_path}"
+  mkdir "${dir_path}"
+  cd "${dir_path}"
+
+  for i in ${projects[@]}
+  do
+    git clone "https://{{ gitlab_user }}:{{ gitlab_auth_token }}@gitlab.{{ homelab_private_host }}/{{ gitlab_user }}/${i}.git" "${dir_path}${i}/"
+  done
+
+  local ts=$(date +%s)
+  local filename="/home/${username}/git_backup_${ts}.zip"
+  zip -r "${filename}" "${dir_path}"
+
+  upload_git_backup "${filename}"
+
+  rm -rf "${dir_path}"
+  rm "${filename}"
+}
+
+clone_repos

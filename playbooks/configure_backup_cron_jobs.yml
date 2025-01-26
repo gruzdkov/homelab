@@ -1,0 +1,34 @@
+- name: Generate keys
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Install apt packages
+      become: true
+      apt:
+        update_cache: yes
+        pkg:
+        - curl
+        - zip
+
+    - name: Put script
+      ansible.builtin.template:
+        src: "../templates/backup_git_repos.sh.j2"
+        dest: "/home/{{ remote_shell_user }}/backup_git_repos.sh"
+        newline_sequence: '\n'
+        mode: "u+rwx"
+
+    - name: Schedule creating backups on reboot
+      cron:
+        name: "create_git_backups_on_reboot"
+        special_time: reboot
+        job: "/home/{{ remote_shell_user }}/backup_git_repos.sh"
+
+
+    - name: Schedule creating backups at 00:00 and 12:00
+      cron:
+        name: "create_git_backups_every_12_hours"
+        minute: "0"
+        hour: "0,12"
+        job: "/home/{{ remote_shell_user }}/backup_git_repos.sh"
+

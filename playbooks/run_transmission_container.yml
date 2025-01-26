@@ -1,0 +1,46 @@
+---
+- name: Run transmission in docker
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: transmission directory
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/transmission/"
+        state: directory
+        mode: "0777"
+
+    - name: Downloads directory
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/media_library/downloads"
+        state: directory
+
+
+    - name: Create transmission container
+      docker_container:
+        name: transmission_main
+        image: lscr.io/linuxserver/transmission:latest
+        recreate: true
+        state: started
+        env:
+          "TZ": "{{ homelab_tz }}"
+          "PUID": "1000"
+          "PGID": "1000"
+        volumes:
+          - "/home/{{ remote_shell_user }}/transmission/config:/config"
+          - "/home/{{ remote_shell_user }}/media_library/downloads:/downloads"
+          - "/home/{{ remote_shell_user }}/media_library/:/media_library"
+          - "/home/{{ remote_shell_user }}/transmission/watch:/watch"
+        published_ports:
+          - "51413:51413"
+          - "51413:51413/udp"
+        restart_policy: unless-stopped
+        labels:
+          "traefik.enable": "true"
+          "traefik.http.routers.transmission.rule": "Host(`transmission.{{ homelab_private_host }}`)"
+          "traefik.http.routers.transmission.entrypoints": "https,http"
+          "traefik.http.routers.transmission.tls": "true"
+          "traefik.http.routers.transmission.tls.certresolver": "cloudflare"
+          "traefik.http.services.transmission.loadbalancer.server.port": "9091"
+        networks:
+          - name: '{{ traefik_network }}'

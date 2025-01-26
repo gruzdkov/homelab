@@ -1,0 +1,19 @@
+- name: Install apt packages
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+  tasks:
+
+    - name: Run nvm installation script
+      shell: "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
+
+    - name: Install node.js
+      shell: ". /home/{{ remote_shell_user }}/.nvm/nvm.sh && nvm install {{ nvm_nodejs_version }} && nvm use {{ nvm_nodejs_version }}"
+      args:
+        executable: /bin/bash
+
+    - name: Add another bin dir to system-wide $PATH.
+      become: true
+      copy:
+        dest: /etc/profile.d/nvm_to_path.sh
+        content: 'PATH=$PATH:/home/{{ remote_shell_user }}/.nvm/versions/node/v{{ nvm_nodejs_version }}/bin/'
+

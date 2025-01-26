@@ -1,0 +1,20 @@
+---
+- name: Install docker
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  roles:
+    - role: geerlingguy.docker
+      become: true
+
+  tasks:
+    - name: Prepare linux user
+      ansible.builtin.user:
+        name: '{{ remote_shell_user }}'
+        groups: docker
+        append: yes
+      become: true
+
+    - name: Create network
+      docker_network:
+        name: '{{ traefik_network }}'

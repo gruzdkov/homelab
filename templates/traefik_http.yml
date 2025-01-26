@@ -1,0 +1,43 @@
+tcp:
+  services:
+    gitlabSsh:
+      loadBalancer:
+        servers:
+          - address: "{{ gitlab_container_ip }}:2424"
+  routers:
+    gitlab:
+      rule: "HostSNI(`gitlab.{{ homelab_private_host }}`)"
+      service: "gitlabSsh"
+      entryPoints:
+        - "gitlabSsh"
+      tls:
+        certresolver: "cloudflare"
+
+
+http:
+  services:
+    gitlabMailcatcher:
+      loadBalancer:
+        servers:
+          - url: "http://{{ gitlab_container_ip }}:1080"
+    gitlab:
+      loadBalancer:
+        servers:
+          - url: "http://{{ gitlab_container_ip }}:80"
+  routers:
+    gitlab:
+      rule: "Host(`gitlab.{{ homelab_private_host }}`)"
+      service: "gitlab"
+      entryPoints:
+        - "http"
+        - "https"
+      tls:
+        certresolver: "cloudflare"
+    gitlabMailcatcher:
+      rule: "Host(`gitlab-mailcatcher.{{ homelab_private_host }}`)"
+      service: "gitlabMailcatcher"
+      entryPoints:
+        - "http"
+        - "https"
+      tls:
+        certresolver: "cloudflare"

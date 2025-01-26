@@ -1,0 +1,30 @@
+---
+- name: Configure lxc
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Put common lxc config
+      template:
+        src: ../templates/lxc_default.conf
+        dest: "/etc/lxc/default.conf"
+        newline_sequence: '\n'
+      become: true
+
+    - name: Create directory
+      file:
+        path: "/home/{{ remote_shell_user }}/.config/lxc"
+        state: directory
+
+    - name: Put user lxc config
+      template:
+        src: ../templates/lxc_user.conf
+        dest: "/home/{{ remote_shell_user }}/.config/lxc/default.conf"
+        newline_sequence: '\n'
+
+    - name: Restart lxc-net service
+      systemd:
+        name: lxc-net
+        state: restarted
+      become: true
+

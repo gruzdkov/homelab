@@ -1,0 +1,56 @@
+log:
+  level: DEBUG
+  format: json
+
+accessLog:
+  format: json
+  bufferingSize: 100
+
+providers:
+  file:
+    filename: "/etc/traefik/traefik_http.yml"
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    network: "{{ traefik_network }}"
+    allowEmptyServices: true
+    exposedByDefault: false
+
+api:
+  insecure: true
+  dashboard: true
+
+serversTransport:
+  insecureSkipVerify: true
+
+certificatesResolvers:
+  cloudflare:
+    acme:
+      email: "{{ acme_email }}"
+      storage: "/etc/traefik/acme/acme.json"
+      dnsChallenge:
+        provider: cloudflare
+        disablePropagationCheck: true
+        delayBeforeCheck: "60"
+        resolvers:
+          - "1.1.1.1:53"
+          - "1.0.0.1:53"
+
+entryPoints:
+  http:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: "https"
+          scheme: "https"
+  https:
+    address: ":443"
+
+  gitlabSsh:
+    address: ":2424"
+
+  postgresql:
+    address: ":5432"
+
+  postgresqlInsecure16:
+    address: ":15432"
