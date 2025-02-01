@@ -31,7 +31,8 @@ upload_git_backup() {
 }
 
 clone_repos() {
-  local projects=("hamster_web" "laladom" "hamster_api")
+  local projects=()
+  readarray -t projects < <(curl -s https://gitlab.private.homekube.ru/api/v4/projects\?access_token\={{ gitlab_auth_token }} | jq -r -c '.[] | .path')
   local username=$(whoami)
   local dir_path="/home/${username}/git_backups/"
 

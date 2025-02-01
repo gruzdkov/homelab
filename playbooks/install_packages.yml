@@ -31,4 +31,5 @@
         - intel-hdcp
         - intel-media-va-driver
         - intel-opencl-icd
+        - jq
 

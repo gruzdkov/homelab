@@ -1,9 +1,7 @@
 ungrouped:
   hosts:
-    {{ lookup('env', 'HOMELAB_BASE_HOST') }}:
+    "{{ lookup('env', 'HOMELAB_BASE_HOST') }}":
   vars:
-    remote_shell_user: robot
-    lxc_root_dir: /lxc_containers
     traefik_network: traefik_main
     gitlab_container_ip: "{{ lookup('env', 'GITLAB_CONTAINER_IP') }}"
     ssh_key: "{{ lookup('file', lookup('env', 'MAIN_HOST_AUTH_KEY_FILE_PATH')) }}"
