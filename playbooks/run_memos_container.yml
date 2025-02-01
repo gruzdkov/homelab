@@ -1,0 +1,30 @@
+---
+- name: Run memos in docker
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Memos directory
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/.memos/"
+        state: directory
+        mode: "0777"
+
+    - name: Create memos container
+      docker_container:
+        name: memos_main
+        image: neosmemo/memos:stable
+        recreate: true
+        state: started
+        volumes:
+          - "/home/{{ remote_shell_user }}/.memos:/var/opt/memos"
+        restart_policy: unless-stopped
+        labels:
+          "traefik.enable": "true"
+          "traefik.http.routers.memos.rule": "Host(`memos.{{ homelab_private_host }}`)"
+          "traefik.http.routers.memos.entrypoints": "https,http"
+          "traefik.http.routers.memos.tls": "true"
+          "traefik.http.routers.memos.tls.certresolver": "cloudflare"
+          "traefik.http.services.memos.loadbalancer.server.port": "5230"
+        networks:
+          - name: '{{ traefik_network }}'
