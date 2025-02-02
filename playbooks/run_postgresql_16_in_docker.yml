@@ -1,0 +1,30 @@
+---
+- name: Run postgresql 16 in docker
+  hosts: all
+  remote_user: "{{ remote_shell_user }}"
+
+  tasks:
+    - name: Postgresql 16 directory
+      ansible.builtin.file:
+        path: "/home/{{ remote_shell_user }}/.postgresql_16/"
+        state: directory
+
+    - name: Create pg 16 container
+      docker_container:
+        name: pg_16_main
+        image: postgres:16-alpine
+        recreate: true
+        state: started
+        shm_size: 128M
+        published_ports:
+          - "54326:5432"
+        env:
+          "TZ": "{{ homelab_tz }}"
+          "PGDATA": "/var/lib/postgresql/data/pgdata"
+          "POSTGRES_PASSWORD": "{{ lookup('env', 'POSTGRES_16_PASSWORD') }}"
+          "POSTGRES_USER": "{{ lookup('env', 'POSTGRES_16_USER') }}"
+        volumes:
+          - "/home/{{ remote_shell_user }}/.postgresql_16:/var/lib/postgresql/data"
+        restart_policy: unless-stopped
+        labels:
+          "traefik.enable": "false"
