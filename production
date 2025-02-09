@@ -5,7 +5,7 @@ ungrouped:
     traefik_network: traefik_main
     gitlab_container_ip: "{{ lookup('env', 'GITLAB_CONTAINER_IP') }}"
     ssh_key: "{{ lookup('file', lookup('env', 'MAIN_HOST_AUTH_KEY_FILE_PATH')) }}"
-    nvm_nodejs_version: 20.18.0
+    nodejs_version: 22
     ya_disk_auth_token: "{{ lookup('env', 'YA_DISK_AUTH_TOKEN') }}"
     gitlab_auth_token: "{{ lookup('env', 'GITLAB_AUTH_TOKEN') }}"
     remote_shell_user: robot

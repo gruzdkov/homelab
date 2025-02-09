@@ -6,6 +6,13 @@
   remote_user: "{{ remote_shell_user }}"
 
   tasks:
+    - name: Fetch nodesource install script
+      command: curl -fsSL https://deb.nodesource.com/setup_{{ nodejs_version }}.x -o /home/{{ remote_shell_user }}/nodesource_setup.sh
+
+    - name: Run nodesouce install script
+      become: true
+      command: bash /home/{{ remote_shell_user }}/nodesource_setup.sh
+
     - name: Install apt packages
       become: true
       apt:
@@ -32,4 +39,5 @@
         - intel-media-va-driver
         - intel-opencl-icd
         - jq
+        - nodejs
 
